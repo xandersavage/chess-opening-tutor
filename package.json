@@ -15,8 +15,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "chess.js": "^1.4.0",
     "next": "16.2.9",
     "react": "19.2.7",
+    "react-chessboard": "^5.10.0",
     "react-dom": "19.2.7"
   },
   "overrides": {
