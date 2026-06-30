@@ -40,6 +40,8 @@ export type MoveAttemptResult =
       message: string;
     };
 
+type GameSource = GameSnapshot | string;
+
 const squareSet = new Set<string>(SQUARES);
 
 export function createGameSnapshot(fen = INITIAL_FEN): GameSnapshot {
@@ -47,13 +49,13 @@ export function createGameSnapshot(fen = INITIAL_FEN): GameSnapshot {
   return createSnapshotFromGame(chess);
 }
 
-function createSnapshotFromGame(chess: Chess): GameSnapshot {
+function createSnapshotFromGame(chess: Chess, history = chess.history()): GameSnapshot {
   const turn = chess.turn();
 
   return {
     fen: chess.fen(),
     fullMoveNumber: chess.moveNumber(),
-    history: chess.history(),
+    history,
     isCheck: chess.isCheck(),
     isGameOver: chess.isGameOver(),
     statusLabel: getStatusLabel(chess),
@@ -62,7 +64,9 @@ function createSnapshotFromGame(chess: Chess): GameSnapshot {
   };
 }
 
-export function tryMove(fen: string, input: MoveInput): MoveAttemptResult {
+export function tryMove(source: GameSource, input: MoveInput): MoveAttemptResult {
+  const fen = typeof source === "string" ? source : source.fen;
+  const history = typeof source === "string" ? [] : source.history;
   const from = normalizeSquare(input.from);
   const to = normalizeSquare(input.to);
 
@@ -86,7 +90,7 @@ export function tryMove(fen: string, input: MoveInput): MoveAttemptResult {
     return {
       ok: true,
       move,
-      snapshot: createSnapshotFromGame(chess),
+      snapshot: createSnapshotFromGame(chess, [...history, move.san]),
     };
   } catch {
     return {

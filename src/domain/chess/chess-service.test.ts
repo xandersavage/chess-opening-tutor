@@ -17,7 +17,7 @@ describe("chess service", () => {
   });
 
   it("accepts legal coordinate moves and records SAN history", () => {
-    const result = tryMove(INITIAL_FEN, { from: "e2", to: "e4" });
+    const result = tryMove(createGameSnapshot(), { from: "e2", to: "e4" });
 
     expect(result.ok).toBe(true);
 
@@ -25,6 +25,24 @@ describe("chess service", () => {
       expect(result.move.san).toBe("e4");
       expect(result.snapshot.turn).toBe("b");
       expect(result.snapshot.history).toEqual(["e4"]);
+    }
+  });
+
+  it("preserves earlier move history across multiple moves", () => {
+    const firstMove = tryMove(createGameSnapshot(), { from: "e2", to: "e4" });
+
+    expect(firstMove.ok).toBe(true);
+
+    if (!firstMove.ok) {
+      throw new Error("Expected first move to be legal");
+    }
+
+    const secondMove = tryMove(firstMove.snapshot, { from: "c7", to: "c5" });
+
+    expect(secondMove.ok).toBe(true);
+
+    if (secondMove.ok) {
+      expect(secondMove.snapshot.history).toEqual(["e4", "c5"]);
     }
   });
 

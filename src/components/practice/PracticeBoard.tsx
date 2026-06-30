@@ -75,7 +75,7 @@ export function PracticeBoard() {
   );
 
   function applyMove(from: string, to: string, promotionPiece = "q") {
-    const result = tryMove(snapshot.fen, {
+    const result = tryMove(snapshot, {
       from,
       to,
       promotion: promotionPiece,
