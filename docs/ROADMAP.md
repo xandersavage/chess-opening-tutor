@@ -10,6 +10,22 @@ The project should be built in small vertical slices. The first milestone should
 
 V1 target: personal app, free to run, local progress, no backend, no AI dependency.
 
+## Progress Tracker
+
+| Module | Status | Branch |
+| --- | --- | --- |
+| M0 Planning Docs | Complete | main |
+| M1 App Scaffold | In review | module/m1-app-scaffold |
+| M2 Board Shell | Not started | TBD |
+| M3 Curriculum Schema | Not started | TBD |
+| M4 Tutor Engine | Not started | TBD |
+| M5 London Module | Not started | TBD |
+| M6 Caro-Kann Module | Not started | TBD |
+| M7 Progress and Review | Not started | TBD |
+| M8 Practice Modes | Not started | TBD |
+| M9 Design System and UX Polish | Not started | TBD |
+| M10 Testing and Release | Not started | TBD |
+
 ## 2. Milestone Map
 
 ```mermaid
@@ -503,4 +519,3 @@ V1 is done when:
 - Tutor style is selectable.
 - The app is responsive and accessible enough for repeated use.
 - No backend, paid service, or AI API is required.
-
