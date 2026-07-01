@@ -19,8 +19,8 @@ V1 target: personal app, free to run, local progress, no backend, no AI dependen
 | M2 Board Shell | Complete | module/m2-board-shell |
 | M3 Curriculum Schema | Complete | module/m3-curriculum-schema |
 | M4 Tutor Engine | Complete | module/m4-tutor-engine |
-| M5 London Module | In review | module/m5-london-module |
-| M6 Caro-Kann Module | Not started | TBD |
+| M5 London Module | Complete | module/m5-london-module |
+| M6 Caro-Kann Module | In review | module/m6-caro-kann-module |
 | M7 Progress and Review | Not started | TBD |
 | M8 Practice Modes | Not started | TBD |
 | M9 Design System and UX Polish | Not started | TBD |
