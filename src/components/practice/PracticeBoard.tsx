@@ -18,6 +18,16 @@ import {
 } from "@/domain/curriculum/curriculum-selectors";
 import type { OpeningId } from "@/domain/curriculum/curriculum-types";
 import {
+  formatHintMessage,
+  formatTutorMoveMessage,
+  getModeChangeMessage,
+  getPositionPrompt,
+  getPracticeMode,
+  practiceModes,
+  selectOpponentReplyForMode,
+  type PracticeModeId,
+} from "@/domain/practice/practice-modes";
+import {
   applyProgressAttempt,
   createEmptyProgressState,
   getProgressSummary,
@@ -82,6 +92,8 @@ export function PracticeBoard() {
   const [lessonComplete, setLessonComplete] = useState(false);
   const [feedbackTone, setFeedbackTone] = useState<TutorFeedbackTone>("info");
   const [message, setMessage] = useState(initialLessonNode.prompt);
+  const [practiceModeId, setPracticeModeId] =
+    useState<PracticeModeId>("guided");
   const [progressState, setProgressState] = useState(createEmptyProgressState);
   const [reviewClockIso, setReviewClockIso] = useState(() =>
     new Date().toISOString(),
@@ -92,6 +104,8 @@ export function PracticeBoard() {
   const currentNode =
     findNodeInOpening(starterCurriculum, openingId, currentNodeId) ??
     getStartingNode(starterCurriculum, openingId);
+  const activeMode = getPracticeMode(practiceModeId);
+  const currentPositionPrompt = getPositionPrompt(practiceModeId, currentNode);
   const currentProgress = progressState.records[currentNode.id];
   const reviewQueue = useMemo(
     () => getReviewQueue(progressState, reviewClockIso, 4),
@@ -211,22 +225,29 @@ export function PracticeBoard() {
 
     if (!evaluation.advance) {
       setSnapshot(createGameSnapshot(currentNode.fen));
-      setMessage(evaluation.message);
+      setMessage(
+        formatTutorMoveMessage(practiceModeId, {
+          evaluation,
+          lessonComplete: false,
+          nextNodeLoaded: false,
+        }),
+      );
       return false;
     }
 
     let nextSnapshot = result.snapshot;
-    let nextMessage = evaluation.message;
+    let opponentReplySan: string | undefined;
+    const opponentReply = selectOpponentReplyForMode(practiceModeId, evaluation);
 
-    if (evaluation.opponentReply) {
+    if (opponentReply) {
       const replyResult = tryMove(
         nextSnapshot,
-        createMoveInputFromUci(evaluation.opponentReply.uci),
+        createMoveInputFromUci(opponentReply.uci),
       );
 
       if (replyResult.ok) {
         nextSnapshot = replyResult.snapshot;
-        nextMessage = `${nextMessage} I replied ${evaluation.opponentReply.san}.`;
+        opponentReplySan = opponentReply.san;
       }
     }
 
@@ -234,15 +255,20 @@ export function PracticeBoard() {
 
     if (evaluation.nextNodeId) {
       setCurrentNodeId(evaluation.nextNodeId);
-      nextMessage = `${nextMessage} Next position loaded.`;
     }
 
     if (evaluation.lessonComplete) {
       setLessonComplete(true);
-      nextMessage = `${nextMessage} Lesson line complete.`;
     }
 
-    setMessage(nextMessage);
+    setMessage(
+      formatTutorMoveMessage(practiceModeId, {
+        evaluation,
+        lessonComplete: evaluation.lessonComplete,
+        nextNodeLoaded: Boolean(evaluation.nextNodeId),
+        opponentReplySan,
+      }),
+    );
     return true;
   }
 
@@ -256,6 +282,7 @@ export function PracticeBoard() {
     }
 
     setOpeningId(location.openingId);
+    setPracticeModeId("review");
     setSnapshot(createGameSnapshot(location.node.fen));
     setCurrentNodeId(location.node.id);
     setSelectedSquare(null);
@@ -294,6 +321,13 @@ export function PracticeBoard() {
     resetLesson(nextOpeningId);
   }
 
+  function handleModeChange(nextModeId: PracticeModeId) {
+    setPracticeModeId(nextModeId);
+    setSelectedSquare(null);
+    setFeedbackTone("info");
+    setMessage(getModeChangeMessage(nextModeId, progressSummary.dueCount));
+  }
+
   function showHint() {
     if (lessonComplete) {
       setFeedbackTone("info");
@@ -305,7 +339,7 @@ export function PracticeBoard() {
 
     setHintCount(hint.nextHintCount);
     setFeedbackTone("info");
-    setMessage(`Hint ${hint.index + 1}: ${hint.message}`);
+    setMessage(formatHintMessage(practiceModeId, hint));
   }
 
   function handleSquareClick(square: string) {
@@ -373,11 +407,28 @@ export function PracticeBoard() {
           <div>
             <h1>Practice</h1>
             <p className="practice-meta">
-              {opening.label}, {opening.description}
+              {opening.label} / {activeMode.label}, {opening.description}
             </p>
           </div>
 
           <div className="toolbar-actions">
+            <div className="mode-tabs" aria-label="Practice mode">
+              {practiceModes.map((mode) => (
+                <button
+                  aria-pressed={practiceModeId === mode.id}
+                  className={
+                    practiceModeId === mode.id
+                      ? "mode-tab active"
+                      : "mode-tab"
+                  }
+                  key={mode.id}
+                  onClick={() => handleModeChange(mode.id)}
+                  type="button"
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
             <label className="field-label" htmlFor="opening-choice">
               Opening
             </label>
@@ -413,7 +464,7 @@ export function PracticeBoard() {
 
         <section className="lesson-card" aria-labelledby="lesson-prompt-title">
           <h3 id="lesson-prompt-title">Current position</h3>
-          <p>{currentNode.prompt}</p>
+          <p>{currentPositionPrompt}</p>
           <div className="tutor-actions">
             <button className="button" onClick={showHint} type="button">
               Hint
@@ -450,6 +501,10 @@ export function PracticeBoard() {
             <dd>{hintCount}</dd>
           </div>
           <div>
+            <dt>Mode</dt>
+            <dd>{activeMode.label}</dd>
+          </div>
+          <div>
             <dt>Mastery</dt>
             <dd>
               {currentProgress ? `${currentProgress.masteryScore}/10` : "New"}
@@ -464,9 +519,24 @@ export function PracticeBoard() {
         <section className="review-panel" aria-labelledby="review-queue-title">
           <div className="review-heading">
             <h3 id="review-queue-title">Review queue</h3>
-            <button className="button subtle" onClick={clearProgress} type="button">
-              Clear progress
-            </button>
+            <div className="review-heading-actions">
+              {practiceModeId === "review" && reviewQueue[0] ? (
+                <button
+                  className="button"
+                  onClick={() => loadReviewPosition(reviewQueue[0])}
+                  type="button"
+                >
+                  Start review
+                </button>
+              ) : null}
+              <button
+                className="button subtle"
+                onClick={clearProgress}
+                type="button"
+              >
+                Clear progress
+              </button>
+            </div>
           </div>
 
           {reviewQueue.length === 0 ? (
