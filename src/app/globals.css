@@ -169,6 +169,14 @@ textarea {
   background: color-mix(in oklch, var(--primary), black 8%);
 }
 
+.button.subtle {
+  min-height: 34px;
+  padding: 6px 10px;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
 .module-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -346,6 +354,68 @@ textarea {
   font-weight: 650;
 }
 
+.review-panel {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.review-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.review-heading h3 {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
+.review-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 10px;
+}
+
+.review-item div {
+  min-width: 0;
+}
+
+.review-item strong,
+.review-item span {
+  display: block;
+}
+
+.review-item strong {
+  overflow-wrap: anywhere;
+  font-size: 0.9375rem;
+}
+
+.review-item span,
+.progress-summary {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.progress-summary {
+  margin-top: 12px;
+}
+
 .move-form {
   display: grid;
   gap: 12px;
@@ -409,6 +479,10 @@ textarea {
   }
 
   .move-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .review-item {
     grid-template-columns: 1fr;
   }
 }

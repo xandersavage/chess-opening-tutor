@@ -5,6 +5,11 @@ import type {
   OpeningModule,
 } from "./curriculum-types";
 
+export type CurriculumNodeLocation = {
+  node: CurriculumNode;
+  openingId: OpeningId;
+};
+
 export function findOpeningModule(
   curriculum: Curriculum,
   openingId: OpeningId,
@@ -32,11 +37,21 @@ export function findNodeById(
   curriculum: Curriculum,
   nodeId: string,
 ): CurriculumNode | null {
+  return findNodeLocation(curriculum, nodeId)?.node ?? null;
+}
+
+export function findNodeLocation(
+  curriculum: Curriculum,
+  nodeId: string,
+): CurriculumNodeLocation | null {
   for (const openingModule of curriculum.modules) {
     const node = openingModule.nodes.find((candidate) => candidate.id === nodeId);
 
     if (node) {
-      return node;
+      return {
+        node,
+        openingId: openingModule.id,
+      };
     }
   }
 
