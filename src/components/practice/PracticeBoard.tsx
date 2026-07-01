@@ -2,16 +2,28 @@
 
 import { useMemo, useState } from "react";
 import { Chessboard, type ChessboardOptions } from "react-chessboard";
+import { starterCurriculum } from "@/data/openings/curriculum";
 import {
+  createMoveInputFromUci,
   createGameSnapshot,
   getLegalTargets,
   tryMove,
   type BoardOrientation,
   type GameSnapshot,
 } from "@/domain/chess/chess-service";
+import {
+  findNodeInOpening,
+  getStartingNode,
+} from "@/domain/curriculum/curriculum-selectors";
+import type { OpeningId } from "@/domain/curriculum/curriculum-types";
+import {
+  evaluateTutorMove,
+  getTutorHint,
+} from "@/domain/tutor/tutor-engine";
+import type { TutorFeedbackTone } from "@/domain/tutor/tutor-types";
 
 type OpeningChoice = {
-  id: "london" | "caro-kann";
+  id: OpeningId;
   label: string;
   orientation: BoardOrientation;
   description: string;
@@ -32,21 +44,28 @@ const openingChoices: OpeningChoice[] = [
   },
 ];
 
-const initialSnapshot = createGameSnapshot();
+const initialOpeningId: OpeningId = "london";
+const initialLessonNode = getStartingNode(starterCurriculum, initialOpeningId);
+const initialSnapshot = createGameSnapshot(initialLessonNode.fen);
 
 export function PracticeBoard() {
   const [snapshot, setSnapshot] = useState<GameSnapshot>(initialSnapshot);
-  const [openingId, setOpeningId] = useState<OpeningChoice["id"]>("london");
+  const [openingId, setOpeningId] = useState<OpeningId>(initialOpeningId);
+  const [currentNodeId, setCurrentNodeId] = useState(initialLessonNode.id);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [fromSquare, setFromSquare] = useState("");
   const [toSquare, setToSquare] = useState("");
   const [promotion, setPromotion] = useState("q");
-  const [message, setMessage] = useState(
-    "Board ready. Play a legal move or use the square inputs.",
-  );
+  const [hintCount, setHintCount] = useState(0);
+  const [lessonComplete, setLessonComplete] = useState(false);
+  const [feedbackTone, setFeedbackTone] = useState<TutorFeedbackTone>("info");
+  const [message, setMessage] = useState(initialLessonNode.prompt);
 
   const opening = openingChoices.find((choice) => choice.id === openingId) ??
     openingChoices[0];
+  const currentNode =
+    findNodeInOpening(starterCurriculum, openingId, currentNodeId) ??
+    getStartingNode(starterCurriculum, openingId);
 
   const legalTargets = useMemo(
     () => (selectedSquare ? getLegalTargets(snapshot.fen, selectedSquare) : []),
@@ -75,6 +94,12 @@ export function PracticeBoard() {
   );
 
   function applyMove(from: string, to: string, promotionPiece = "q") {
+    if (lessonComplete) {
+      setFeedbackTone("info");
+      setMessage("This lesson line is complete. Reset the lesson to practice it again.");
+      return false;
+    }
+
     const result = tryMove(snapshot, {
       from,
       to,
@@ -82,41 +107,111 @@ export function PracticeBoard() {
     });
 
     if (!result.ok) {
+      setFeedbackTone("warning");
       setMessage(result.message);
       return false;
     }
 
-    setSnapshot(result.snapshot);
-    setMessage(`${result.move.san} played. ${result.snapshot.turnLabel} to move.`);
+    const evaluation = evaluateTutorMove({
+      hintCount,
+      move: result.move,
+      node: currentNode,
+    });
+
     setSelectedSquare(null);
     setFromSquare("");
     setToSquare("");
+    setHintCount(0);
+    setFeedbackTone(evaluation.tone);
+
+    if (!evaluation.advance) {
+      setSnapshot(createGameSnapshot(currentNode.fen));
+      setMessage(evaluation.message);
+      return false;
+    }
+
+    let nextSnapshot = result.snapshot;
+    let nextMessage = evaluation.message;
+
+    if (evaluation.opponentReply) {
+      const replyResult = tryMove(
+        nextSnapshot,
+        createMoveInputFromUci(evaluation.opponentReply.uci),
+      );
+
+      if (replyResult.ok) {
+        nextSnapshot = replyResult.snapshot;
+        nextMessage = `${nextMessage} I replied ${evaluation.opponentReply.san}.`;
+      }
+    }
+
+    setSnapshot(nextSnapshot);
+
+    if (evaluation.nextNodeId) {
+      setCurrentNodeId(evaluation.nextNodeId);
+      nextMessage = `${nextMessage} Next position loaded.`;
+    }
+
+    if (evaluation.lessonComplete) {
+      setLessonComplete(true);
+      nextMessage = `${nextMessage} Lesson line complete.`;
+    }
+
+    setMessage(nextMessage);
     return true;
   }
 
-  function resetBoard() {
-    setSnapshot(createGameSnapshot());
+  function resetLesson(nextOpeningId = openingId) {
+    const startingNode = getStartingNode(starterCurriculum, nextOpeningId);
+
+    setSnapshot(createGameSnapshot(startingNode.fen));
+    setCurrentNodeId(startingNode.id);
     setSelectedSquare(null);
     setFromSquare("");
     setToSquare("");
-    setMessage("Board reset to the starting position.");
+    setHintCount(0);
+    setLessonComplete(false);
+    setFeedbackTone("info");
+    setMessage(startingNode.prompt);
+  }
+
+  function handleOpeningChange(nextOpeningId: OpeningId) {
+    setOpeningId(nextOpeningId);
+    resetLesson(nextOpeningId);
+  }
+
+  function showHint() {
+    if (lessonComplete) {
+      setFeedbackTone("info");
+      setMessage("This lesson line is complete. Reset the lesson to practice it again.");
+      return;
+    }
+
+    const hint = getTutorHint(currentNode, hintCount);
+
+    setHintCount(hint.nextHintCount);
+    setFeedbackTone("info");
+    setMessage(`Hint ${hint.index + 1}: ${hint.message}`);
   }
 
   function handleSquareClick(square: string) {
     if (!selectedSquare) {
       if (getLegalTargets(snapshot.fen, square).length === 0) {
+        setFeedbackTone("warning");
         setMessage(`No legal moves from ${square}.`);
         return;
       }
 
       setSelectedSquare(square);
       setFromSquare(square);
+      setFeedbackTone("info");
       setMessage(`Selected ${square}. Choose a target square.`);
       return;
     }
 
     if (selectedSquare === square) {
       setSelectedSquare(null);
+      setFeedbackTone("info");
       setMessage(`Cleared ${square}.`);
       return;
     }
@@ -147,6 +242,7 @@ export function PracticeBoard() {
     },
     onPieceDrop: ({ sourceSquare, targetSquare }) => {
       if (!targetSquare) {
+        setFeedbackTone("info");
         setMessage("Move cancelled.");
         return false;
       }
@@ -175,7 +271,7 @@ export function PracticeBoard() {
               className="select-control"
               id="opening-choice"
               onChange={(event) =>
-                setOpeningId(event.target.value as OpeningChoice["id"])}
+                handleOpeningChange(event.target.value as OpeningId)}
               value={openingId}
             >
               {openingChoices.map((choice) => (
@@ -184,8 +280,8 @@ export function PracticeBoard() {
                 </option>
               ))}
             </select>
-            <button className="button" onClick={resetBoard} type="button">
-              Reset board
+            <button className="button" onClick={() => resetLesson()} type="button">
+              Reset lesson
             </button>
           </div>
         </div>
@@ -196,8 +292,23 @@ export function PracticeBoard() {
       </div>
 
       <aside className="tutor-panel" aria-labelledby="board-status-title">
-        <h2 id="board-status-title">Board status</h2>
-        <p aria-live="polite">{message}</p>
+        <h2 id="board-status-title">Tutor</h2>
+        <p className={`tutor-feedback ${feedbackTone}`} aria-live="polite">
+          {message}
+        </p>
+
+        <section className="lesson-card" aria-labelledby="lesson-prompt-title">
+          <h3 id="lesson-prompt-title">Current position</h3>
+          <p>{currentNode.prompt}</p>
+          <div className="tutor-actions">
+            <button className="button" onClick={showHint} type="button">
+              Hint
+            </button>
+            <button className="button" onClick={() => resetLesson()} type="button">
+              Retry
+            </button>
+          </div>
+        </section>
 
         <dl className="status-grid">
           <div>
@@ -215,6 +326,14 @@ export function PracticeBoard() {
           <div>
             <dt>State</dt>
             <dd>{snapshot.statusLabel}</dd>
+          </div>
+          <div>
+            <dt>Lesson</dt>
+            <dd>{lessonComplete ? "Complete" : currentNode.id}</dd>
+          </div>
+          <div>
+            <dt>Hints</dt>
+            <dd>{hintCount}</dd>
           </div>
         </dl>
 

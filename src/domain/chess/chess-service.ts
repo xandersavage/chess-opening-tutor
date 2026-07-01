@@ -101,6 +101,14 @@ export function tryMove(source: GameSource, input: MoveInput): MoveAttemptResult
   }
 }
 
+export function createMoveInputFromUci(uci: string): MoveInput {
+  return {
+    from: uci.slice(0, 2),
+    promotion: uci.slice(4) || undefined,
+    to: uci.slice(2, 4),
+  };
+}
+
 export function getLegalTargets(fen: string, square: string): string[] {
   const normalizedSquare = normalizeSquare(square);
 
