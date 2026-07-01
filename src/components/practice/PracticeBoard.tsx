@@ -43,6 +43,17 @@ import {
   evaluateTutorMove,
   getTutorHint,
 } from "@/domain/tutor/tutor-engine";
+import {
+  defaultTutorStyleId,
+  formatTutorStyleMessage,
+  getTutorStyle,
+  tutorStyles,
+  type TutorStyleId,
+} from "@/domain/tutor/tutor-style";
+import {
+  loadTutorStyleId,
+  saveTutorStyleId,
+} from "@/domain/tutor/tutor-style-storage";
 import type {
   TutorFeedbackTone,
   TutorMoveEvaluation,
@@ -94,6 +105,9 @@ export function PracticeBoard() {
   const [message, setMessage] = useState(initialLessonNode.prompt);
   const [practiceModeId, setPracticeModeId] =
     useState<PracticeModeId>("guided");
+  const [tutorStyleId, setTutorStyleId] =
+    useState<TutorStyleId>(defaultTutorStyleId);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [progressState, setProgressState] = useState(createEmptyProgressState);
   const [reviewClockIso, setReviewClockIso] = useState(() =>
     new Date().toISOString(),
@@ -106,6 +120,7 @@ export function PracticeBoard() {
     getStartingNode(starterCurriculum, openingId);
   const activeMode = getPracticeMode(practiceModeId);
   const currentPositionPrompt = getPositionPrompt(practiceModeId, currentNode);
+  const tutorStyle = getTutorStyle(tutorStyleId);
   const currentProgress = progressState.records[currentNode.id];
   const reviewQueue = useMemo(
     () => getReviewQueue(progressState, reviewClockIso, 4),
@@ -154,10 +169,26 @@ export function PracticeBoard() {
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       setProgressState(loadProgressState());
+      setTutorStyleId(loadTutorStyleId());
       setReviewClockIso(new Date().toISOString());
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const syncReducedMotion = () => {
+      setPrefersReducedMotion(mediaQuery.matches);
+    };
+    const timeoutId = window.setTimeout(syncReducedMotion, 0);
+
+    mediaQuery.addEventListener("change", syncReducedMotion);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      mediaQuery.removeEventListener("change", syncReducedMotion);
+    };
   }, []);
 
   useEffect(() => {
@@ -193,7 +224,13 @@ export function PracticeBoard() {
   function applyMove(from: string, to: string, promotionPiece = "q") {
     if (lessonComplete) {
       setFeedbackTone("info");
-      setMessage("This lesson line is complete. Reset the lesson to practice it again.");
+      setMessage(
+        formatTutorStyleMessage(
+          tutorStyleId,
+          "This lesson line is complete. Reset the lesson to practice it again.",
+          "info",
+        ),
+      );
       return false;
     }
 
@@ -205,7 +242,7 @@ export function PracticeBoard() {
 
     if (!result.ok) {
       setFeedbackTone("warning");
-      setMessage(result.message);
+      setMessage(formatTutorStyleMessage(tutorStyleId, result.message, "warning"));
       return false;
     }
 
@@ -226,11 +263,15 @@ export function PracticeBoard() {
     if (!evaluation.advance) {
       setSnapshot(createGameSnapshot(currentNode.fen));
       setMessage(
-        formatTutorMoveMessage(practiceModeId, {
-          evaluation,
-          lessonComplete: false,
-          nextNodeLoaded: false,
-        }),
+        formatTutorStyleMessage(
+          tutorStyleId,
+          formatTutorMoveMessage(practiceModeId, {
+            evaluation,
+            lessonComplete: false,
+            nextNodeLoaded: false,
+          }),
+          evaluation.tone,
+        ),
       );
       return false;
     }
@@ -262,12 +303,16 @@ export function PracticeBoard() {
     }
 
     setMessage(
-      formatTutorMoveMessage(practiceModeId, {
-        evaluation,
-        lessonComplete: evaluation.lessonComplete,
-        nextNodeLoaded: Boolean(evaluation.nextNodeId),
-        opponentReplySan,
-      }),
+      formatTutorStyleMessage(
+        tutorStyleId,
+        formatTutorMoveMessage(practiceModeId, {
+          evaluation,
+          lessonComplete: evaluation.lessonComplete,
+          nextNodeLoaded: Boolean(evaluation.nextNodeId),
+          opponentReplySan,
+        }),
+        evaluation.tone,
+      ),
     );
     return true;
   }
@@ -277,7 +322,13 @@ export function PracticeBoard() {
 
     if (!location) {
       setFeedbackTone("warning");
-      setMessage("That review position is no longer in the curriculum.");
+      setMessage(
+        formatTutorStyleMessage(
+          tutorStyleId,
+          "That review position is no longer in the curriculum.",
+          "warning",
+        ),
+      );
       return;
     }
 
@@ -291,7 +342,13 @@ export function PracticeBoard() {
     setHintCount(0);
     setLessonComplete(false);
     setFeedbackTone("info");
-    setMessage(`Review loaded. ${location.node.prompt}`);
+    setMessage(
+      formatTutorStyleMessage(
+        tutorStyleId,
+        `Review loaded. ${location.node.prompt}`,
+        "info",
+      ),
+    );
   }
 
   function clearProgress() {
@@ -299,7 +356,13 @@ export function PracticeBoard() {
     setProgressState(createEmptyProgressState());
     setReviewClockIso(new Date().toISOString());
     setFeedbackTone("info");
-    setMessage("Local progress cleared. Your next move starts a fresh record.");
+    setMessage(
+      formatTutorStyleMessage(
+        tutorStyleId,
+        "Local progress cleared. Your next move starts a fresh record.",
+        "info",
+      ),
+    );
   }
 
   function resetLesson(nextOpeningId = openingId) {
@@ -313,7 +376,7 @@ export function PracticeBoard() {
     setHintCount(0);
     setLessonComplete(false);
     setFeedbackTone("info");
-    setMessage(startingNode.prompt);
+    setMessage(formatTutorStyleMessage(tutorStyleId, startingNode.prompt, "info"));
   }
 
   function handleOpeningChange(nextOpeningId: OpeningId) {
@@ -325,13 +388,38 @@ export function PracticeBoard() {
     setPracticeModeId(nextModeId);
     setSelectedSquare(null);
     setFeedbackTone("info");
-    setMessage(getModeChangeMessage(nextModeId, progressSummary.dueCount));
+    setMessage(
+      formatTutorStyleMessage(
+        tutorStyleId,
+        getModeChangeMessage(nextModeId, progressSummary.dueCount),
+        "info",
+      ),
+    );
+  }
+
+  function handleTutorStyleChange(nextStyleId: TutorStyleId) {
+    setTutorStyleId(nextStyleId);
+    saveTutorStyleId(nextStyleId);
+    setFeedbackTone("info");
+    setMessage(
+      formatTutorStyleMessage(
+        nextStyleId,
+        `${getTutorStyle(nextStyleId).label} selected.`,
+        "info",
+      ),
+    );
   }
 
   function showHint() {
     if (lessonComplete) {
       setFeedbackTone("info");
-      setMessage("This lesson line is complete. Reset the lesson to practice it again.");
+      setMessage(
+        formatTutorStyleMessage(
+          tutorStyleId,
+          "This lesson line is complete. Reset the lesson to practice it again.",
+          "info",
+        ),
+      );
       return;
     }
 
@@ -339,28 +427,75 @@ export function PracticeBoard() {
 
     setHintCount(hint.nextHintCount);
     setFeedbackTone("info");
-    setMessage(formatHintMessage(practiceModeId, hint));
+    setMessage(
+      formatTutorStyleMessage(
+        tutorStyleId,
+        formatHintMessage(practiceModeId, hint),
+        "info",
+      ),
+    );
+  }
+
+  function revealMove() {
+    if (lessonComplete) {
+      setFeedbackTone("info");
+      setMessage(
+        formatTutorStyleMessage(
+          tutorStyleId,
+          "This lesson line is complete. Reset the lesson to practice it again.",
+          "info",
+        ),
+      );
+      return;
+    }
+
+    const expectedMove = currentNode.expectedMoves[0];
+
+    setFeedbackTone("info");
+    setMessage(
+      formatTutorStyleMessage(
+        tutorStyleId,
+        expectedMove
+          ? `Target move: ${expectedMove.san}. ${currentNode.explanation}`
+          : "No target move is set for this position.",
+        "info",
+      ),
+    );
   }
 
   function handleSquareClick(square: string) {
     if (!selectedSquare) {
       if (getLegalTargets(snapshot.fen, square).length === 0) {
         setFeedbackTone("warning");
-        setMessage(`No legal moves from ${square}.`);
+        setMessage(
+          formatTutorStyleMessage(
+            tutorStyleId,
+            `No legal moves from ${square}.`,
+            "warning",
+          ),
+        );
         return;
       }
 
       setSelectedSquare(square);
       setFromSquare(square);
       setFeedbackTone("info");
-      setMessage(`Selected ${square}. Choose a target square.`);
+      setMessage(
+        formatTutorStyleMessage(
+          tutorStyleId,
+          `Selected ${square}. Choose a target square.`,
+          "info",
+        ),
+      );
       return;
     }
 
     if (selectedSquare === square) {
       setSelectedSquare(null);
       setFeedbackTone("info");
-      setMessage(`Cleared ${square}.`);
+      setMessage(
+        formatTutorStyleMessage(tutorStyleId, `Cleared ${square}.`, "info"),
+      );
       return;
     }
 
@@ -379,7 +514,7 @@ export function PracticeBoard() {
     position: snapshot.fen,
     boardOrientation: opening.orientation,
     showNotation: true,
-    animationDurationInMs: 140,
+    animationDurationInMs: prefersReducedMotion ? 0 : 140,
     squareStyles,
     lightSquareStyle: { backgroundColor: "oklch(0.87 0.035 95)" },
     darkSquareStyle: { backgroundColor: "oklch(0.48 0.075 150)" },
@@ -445,14 +580,51 @@ export function PracticeBoard() {
                 </option>
               ))}
             </select>
+            <label className="field-label" htmlFor="tutor-style-choice">
+              Tutor
+            </label>
+            <select
+              className="select-control"
+              id="tutor-style-choice"
+              onChange={(event) =>
+                handleTutorStyleChange(event.target.value as TutorStyleId)}
+              value={tutorStyleId}
+            >
+              {tutorStyles.map((style) => (
+                <option key={style.id} value={style.id}>
+                  {style.label}
+                </option>
+              ))}
+            </select>
             <button className="button" onClick={() => resetLesson()} type="button">
               Reset lesson
             </button>
           </div>
         </div>
 
-        <div className="board-frame">
+        <div className="board-frame" aria-label="Chessboard" role="group">
           <Chessboard options={boardOptions} />
+        </div>
+
+        <div className="progress-strip" aria-label="Progress summary">
+          <div>
+            <strong>{progressSummary.attempts}</strong>
+            <span>Attempts</span>
+          </div>
+          <div>
+            <strong>{progressSummary.correct}</strong>
+            <span>Correct</span>
+          </div>
+          <div>
+            <strong>{progressSummary.dueCount}</strong>
+            <span>Due</span>
+          </div>
+          <div>
+            <strong>
+              {currentProgress ? `${currentProgress.masteryScore}/10` : "-"}
+            </strong>
+            <span>Mastery</span>
+          </div>
         </div>
       </div>
 
@@ -471,6 +643,9 @@ export function PracticeBoard() {
             </button>
             <button className="button" onClick={() => resetLesson()} type="button">
               Retry
+            </button>
+            <button className="button" onClick={revealMove} type="button">
+              Reveal
             </button>
           </div>
         </section>
@@ -494,7 +669,7 @@ export function PracticeBoard() {
           </div>
           <div>
             <dt>Lesson</dt>
-            <dd>{lessonComplete ? "Complete" : currentNode.id}</dd>
+            <dd>{lessonComplete ? "Complete" : "Active"}</dd>
           </div>
           <div>
             <dt>Hints</dt>
@@ -513,6 +688,10 @@ export function PracticeBoard() {
           <div>
             <dt>Due review</dt>
             <dd>{progressSummary.dueCount}</dd>
+          </div>
+          <div>
+            <dt>Tutor</dt>
+            <dd>{tutorStyle.label}</dd>
           </div>
         </dl>
 

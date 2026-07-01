@@ -22,8 +22,8 @@ V1 target: personal app, free to run, local progress, no backend, no AI dependen
 | M5 London Module | Complete | module/m5-london-module |
 | M6 Caro-Kann Module | Complete | module/m6-caro-kann-module |
 | M7 Progress and Review | Complete | module/m7-progress-review |
-| M8 Practice Modes | In review | module/m8-practice-modes |
-| M9 Design System and UX Polish | Not started | TBD |
+| M8 Practice Modes | Complete | module/m8-practice-modes |
+| M9 Design System and UX Polish | In review | module/m9-design-system-polish |
 | M10 Testing and Release | Not started | TBD |
 
 ## 2. Milestone Map
