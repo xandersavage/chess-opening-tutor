@@ -23,8 +23,8 @@ V1 target: personal app, free to run, local progress, no backend, no AI dependen
 | M6 Caro-Kann Module | Complete | module/m6-caro-kann-module |
 | M7 Progress and Review | Complete | module/m7-progress-review |
 | M8 Practice Modes | Complete | module/m8-practice-modes |
-| M9 Design System and UX Polish | In review | module/m9-design-system-polish |
-| M10 Testing and Release | Not started | TBD |
+| M9 Design System and UX Polish | Complete | module/m9-design-system-polish |
+| M10 Testing and Release | In review | module/m10-testing-release |
 
 ## 2. Milestone Map
 
