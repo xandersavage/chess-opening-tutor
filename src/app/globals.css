@@ -150,8 +150,10 @@ textarea {
   justify-content: center;
   border: 1px solid var(--line);
   border-radius: var(--radius);
+  background: var(--surface);
   padding: 8px 14px;
   color: var(--ink);
+  cursor: pointer;
   font-weight: 650;
 }
 
@@ -305,6 +307,39 @@ textarea {
   padding: 0;
 }
 
+.progress-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.progress-strip div {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+  padding: 10px;
+  border-right: 1px solid var(--line);
+}
+
+.progress-strip div:last-child {
+  border-right: 0;
+}
+
+.progress-strip strong {
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.progress-strip span {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
 .tutor-panel {
   padding: 18px;
 }
@@ -321,10 +356,12 @@ textarea {
 }
 
 .tutor-feedback {
+  min-height: 68px;
   border-left: 4px solid var(--focus);
   background: var(--surface-2);
   padding: 10px 12px;
   color: var(--ink);
+  overflow-wrap: anywhere;
 }
 
 .tutor-feedback.success {
@@ -381,6 +418,7 @@ textarea {
 .status-grid dd {
   margin: 2px 0 0;
   font-weight: 650;
+  overflow-wrap: anywhere;
 }
 
 .review-panel {
@@ -491,6 +529,8 @@ textarea {
   grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
   gap: 8px 12px;
   margin: 10px 0 0;
+  max-height: 148px;
+  overflow: auto;
   padding-left: 22px;
 }
 
@@ -524,6 +564,18 @@ textarea {
 
   .move-fields {
     grid-template-columns: 1fr;
+  }
+
+  .progress-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .progress-strip div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .progress-strip div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
   }
 
   .review-heading {
