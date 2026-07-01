@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createMoveInputFromUci,
   createGameSnapshot,
   getLegalTargets,
   INITIAL_FEN,
@@ -59,5 +60,13 @@ describe("chess service", () => {
 
   it("returns legal targets for a selected square", () => {
     expect(getLegalTargets(INITIAL_FEN, "g1")).toEqual(["f3", "h3"]);
+  });
+
+  it("creates coordinate move input from UCI notation", () => {
+    expect(createMoveInputFromUci("e7e8q")).toEqual({
+      from: "e7",
+      promotion: "q",
+      to: "e8",
+    });
   });
 });

@@ -283,6 +283,44 @@ textarea {
   color: var(--muted);
 }
 
+.tutor-feedback {
+  border-left: 4px solid var(--focus);
+  background: var(--surface-2);
+  padding: 10px 12px;
+  color: var(--ink);
+}
+
+.tutor-feedback.success {
+  border-color: var(--primary);
+}
+
+.tutor-feedback.warning {
+  border-color: var(--mistake);
+}
+
+.lesson-card {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.lesson-card h3 {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
+.lesson-card p {
+  margin: 8px 0 0;
+}
+
+.tutor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
 .status-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -385,4 +423,3 @@ textarea {
     animation-iteration-count: 1 !important;
   }
 }
-
