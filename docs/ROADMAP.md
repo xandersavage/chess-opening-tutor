@@ -16,8 +16,8 @@ V1 target: personal app, free to run, local progress, no backend, no AI dependen
 | --- | --- | --- |
 | M0 Planning Docs | Complete | main |
 | M1 App Scaffold | Complete | module/m1-app-scaffold |
-| M2 Board Shell | In review | module/m2-board-shell |
-| M3 Curriculum Schema | Not started | TBD |
+| M2 Board Shell | Complete | module/m2-board-shell |
+| M3 Curriculum Schema | In review | module/m3-curriculum-schema |
 | M4 Tutor Engine | Not started | TBD |
 | M5 London Module | Not started | TBD |
 | M6 Caro-Kann Module | Not started | TBD |

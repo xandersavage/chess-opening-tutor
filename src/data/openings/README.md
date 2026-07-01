@@ -1,4 +1,6 @@
 # Opening Data
 
-Curriculum data for the London System and Caro-Kann will be added in the curriculum schema module.
+This folder contains curated opening curriculum data.
+
+The starter curriculum intentionally includes only a small London System and Caro-Kann seed. Full lesson branches are added in the opening content modules.
 
